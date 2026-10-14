@@ -1,0 +1,27 @@
+= pl-freesurfer: history
+:toc:
+
+== Abstract
+
+pl-freesurfer is the plugin the 2026 revitalization of the pf* stack was walked toward. Its predecessor, pl-fshack, wrapped FreeSurfer 7.3.2 in a plugin named for what it was; pl-freesurfer 1.0.0 wraps FreeSurfer 8.2.0 in a spec on pl-shexec, with no engine code of its own, and is the first plugin cut from pfstack's `plugin-on-shexec` template. This document records the lineage and the table of plugin versions against FreeSurfer versions.
+
+== 2020 to 2025: pl-fshack
+
+pl-fshack was written in 2020 on the ChRIS plugin template of its day. It took `--exec`, the FreeSurfer program to run, `recon-all` by default; `--args`, the program's options as one string with a sentinel; `--inputFile`, a file name or a leading-period pattern that chose the first matching file; and `--outputFile`. It ran one subject per plugin instance through an `asyncio` subprocess with `SUBJECTS_DIR` set per job, and wrote the program's stdout and stderr to files in the output directory. Its image was built from the lab's Ubuntu-with-Python base by downloading FreeSurfer's tarball, and the licence file in the repository was moved into FreeSurfer's home. From 7.3.1 on the image exceeded the GitHub runner's disk, and the Dockerfile's comment records that releases were built and pushed by hand and registered through the ChRIS store's web form. The last release was 1.4.8, in 2022, on FreeSurfer 7.3.2.
+
+== 2026: the stack rebuilt toward this plugin
+
+The decision of 2026-10-13 was that pl-freesurfer would be built on pl-shexec's design, one `--exec` template rather than an `--args` string, and that pl-shexec's design would first be made sound: pftree, pfdo, pftag and pfdo_run rebuilt in dependency order, hostlib created for running a process with a truthful record, pflog rebuilt for timing a run, pl-shexec rebuilt on all of them, and then, when the question of how pl-shexec serves a plugin built on it was finally asked, `plugin_build` added so that such a plugin depends on pl-shexec rather than copying it. pfstack holds the stack's rules, its map and the template this plugin was cut from. The chain took two days; this plugin's own Python took an hour, which is the point.
+
+Three choices were made for the plugin itself. Its version is its own and FreeSurfer's rides beside it, in the title, in `--version`, in the image's labels and in the table below, rather than in the plugin's name or as its version number, because the plugin changes more often than FreeSurfer does and a pipeline binds to a name. Its input is any file `recon-all` reads, DICOM or NIfTI, the first in each subject directory, as FreeSurfer itself expects, rather than NIfTI alone. And the licence is baked into the image under `FS_LICENSE`, as pl-fshack had done, for research use, with the path documented so a site can mount its own.
+
+A fourth choice came out of sizing the plugin's memory. The first draft asked ChRIS for 8Gi, a FreeSurfer 7 figure; a run of `recon-all` on FreeSurfer's sample volume in the 8.2.0 image measured SynthSeg at 15.7 GB and SynthMorph at 15.3 GB, and FreeSurfer's guidance for the 8 series is 24 to 32 GB per run, so the minimum became 32Gi. That made shexec's `--threads`, which runs that many subjects at once in one container, a guaranteed out-of-memory kill of every subject at two or more, and pman restarts a killed job on its half-written output. The plugin does not offer the flag: shexec 2.3.0 added `PluginSpec.omit` for this, and parallelism across subjects is one plugin instance per subject, each with `--dirFilter`, scheduled by ChRIS as separate containers, created in the operator's design by a controller plugin in the feed.
+
+== Plugin versions and the FreeSurfer they carry
+
+[cols="1,1,3"]
+|===
+| Plugin | FreeSurfer | Notes
+
+| 1.0.0 | 8.2.0 | First release, on shexec 2.3.0, pfdo_run 4.2.0, hostlib 1.2.0, pflog 2.0.0; `--threads` not offered.
+|===
