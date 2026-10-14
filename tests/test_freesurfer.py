@@ -108,3 +108,15 @@ def test_chris_plugin_info_describesThePlugin() -> None:
     assert description["version"] == __version__ and FREESURFER_VERSION in description["title"]
     assert description["documentation"] == "https://github.com/FNNDSC/pl-freesurfer"
     assert description["min_memory_limit"] == "32Gi"
+
+
+def test_threadsNotOffered_singleSubjectPerContainer(capsys: pytest.CaptureFixture[str]) -> None:
+    names: set[str] = {parameter["name"] for parameter in serialize(parser)}
+    assert "threads" not in names and "threadsSplit" not in names
+    assert parser.parse_args([]).threads == 0
+    with pytest.raises(SystemExit) as raised:
+        parser.parse_args(["--threads", "2"])
+    assert raised.value.code == 2
+    capsys.readouterr()
+    assert main(parser.parse_args(["--man"]), Path("/tmp"), Path("/tmp")) == 0
+    assert "[--threads" not in capsys.readouterr().out

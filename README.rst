@@ -53,7 +53,7 @@ For a subject directory ``sub-01`` in the input tree, the output tree gets:
 
 ``pflog read /outgoing/*/jobs.jsonl`` prints the subjects as a table, ``--failed`` keeps the ones that went wrong, and a log collector indexes the lines. ``--jobFiles`` also writes the command, stdout, stderr and return code as four files beside the subject directory, for reading in an editor; ``--noJobLogging`` keeps no record. The plugin's own run is one line of JSON on standard error, which CUBE keeps with the plugin instance.
 
-Subjects run in sequence unless ``--threads`` says otherwise; ``recon-all`` itself takes ``-openmp`` through the template. A subject whose ``recon-all`` fails is recorded as failed and the run goes on to the next; the plugin exits 0 when at least one subject completed, 1 when every subject failed, 2 on a usage error.
+Subjects run one after another, never several at once in one container: FreeSurfer 8's ``recon-all`` peaks near 16 GB, so the plugin asks ChRIS for 32Gi and runs one subject at a time within it. Many subjects are processed in parallel by running one plugin instance per subject, each with ``--dirFilter`` naming its subject, which ChRIS schedules as separate containers. ``recon-all`` itself takes ``-openmp`` through the template, to give one subject more cores. A subject whose ``recon-all`` fails is recorded as failed and the run goes on to the next; the plugin exits 0 when at least one subject completed, 1 when every subject failed, 2 on a usage error.
 
 The image
 ---------

@@ -81,10 +81,14 @@ DESCRIPTION: str = f"""
         --exec replaces the command with any FreeSurfer program, as a template
         whose tags name the current directory and file; --fileFilter and
         --analyzeFileIndex choose which file in each directory the command
-        gets. --threads runs that many subjects at once in the same container,
-        so the memory the container is given must hold that many recon-all
-        runs: FreeSurfer 8's recon-all peaks near 16 GB in its SynthSeg step
-        and FreeSurfer advises 24 to 32 GB per run.
+        gets. recon-all's own options, such as -openmp to use more cores for
+        one subject, go in the template.
+
+        Subjects run one after another. The plugin does not run subjects in
+        parallel within one container: FreeSurfer 8's recon-all peaks near
+        16 GB in its SynthSeg step, so two at once would exhaust the
+        container's memory. To process subjects in parallel, run one plugin
+        instance per subject, each choosing its subject with --dirFilter.
 
         The plugin's own run is timed: one line of JSON on standard error.
         FreeSurfer's licence is in the image under FS_LICENSE, for research
@@ -105,9 +109,13 @@ EXAMPLES: str = """
 
         freesurfer /incoming /outgoing
 
-    The same, choosing the input by name and running four subjects at once:
+    The same, choosing the input by name:
 
-        freesurfer --fileFilter 'glob:*.nii.gz' --threads 4 /incoming /outgoing
+        freesurfer --fileFilter 'glob:*.nii.gz' /incoming /outgoing
+
+    One subject only, as one of many instances run in parallel:
+
+        freesurfer --dirFilter sub-01 /incoming /outgoing
 
     Pass recon-all's own options by giving the template with them in:
 
@@ -143,6 +151,7 @@ SPEC: PluginSpec = PluginSpec(
     minMemory="32Gi",
     minCpu="2000m",
     defaults={"exec": RECON_ALL, "analyzeFileIndex": "f", "fileFilter": ""},
+    omit=("threads", "threadsSplit"),
     bannerArt=BANNER_ART,
     bannerTitle=BANNER_TITLE,
     bannerText=BANNER_TEXT,
