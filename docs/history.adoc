@@ -24,4 +24,5 @@ A fourth choice came out of sizing the plugin's memory. The first draft asked Ch
 | Plugin | FreeSurfer | Notes
 
 | 1.0.0 | 8.2.0 | First release, on shexec 2.3.0, pfdo_run 4.2.0, hostlib 1.2.0, pflog 2.0.0; `--threads` not offered.
+| 1.0.1 | 8.2.0 | The 1.0.0 tag pushed the image but failed to register it on cube.chrisproject.org: `upload-chris-plugin` runs `chris_plugin_info` without a distribution name, which the image's two plugin distributions, freesurfer and shexec, make ambiguous. The workflow now writes the description itself, naming `freesurfer`, and hands the action the file. No change to the plugin.
 |===

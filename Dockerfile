@@ -13,8 +13,8 @@
 #
 # Build and check locally:
 #
-#   docker build -t localhost/fnndsc/pl-freesurfer:1.0.0 .
-#   docker run --rm localhost/fnndsc/pl-freesurfer:1.0.0 freesurfer --version
+#   docker build -t localhost/fnndsc/pl-freesurfer:1.0.1 .
+#   docker run --rm localhost/fnndsc/pl-freesurfer:1.0.1 freesurfer --version
 #
 # The image is some 26 GB unpacked; CI frees the runner's disk before building it.
 
@@ -24,7 +24,7 @@ LABEL org.opencontainers.image.authors="FNNDSC <dev@babyMRI.org>" \
       org.opencontainers.image.title="pl-freesurfer" \
       org.opencontainers.image.description="FreeSurfer 8.2 recon-all over every subject directory of an input tree: a ChRIS DS plugin on pl-shexec" \
       org.opencontainers.image.source="https://github.com/FNNDSC/pl-freesurfer" \
-      org.opencontainers.image.version="1.0.0" \
+      org.opencontainers.image.version="1.0.1" \
       freesurfer.version="8.2.0"
 
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8 PATH=/usr/local/bin:${PATH}
