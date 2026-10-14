@@ -1,0 +1,26 @@
+= pl-freesurfer: purpose
+:toc:
+
+== Abstract
+
+pl-freesurfer is a ChRIS DS plugin that runs FreeSurfer once per subject directory of its input tree, `recon-all -all` by default on the first file of each directory, DICOM or NIfTI, and writes each subject's reconstruction into the matching directory of the output tree with a record of the run beside it. It is built on pl-shexec, contributing the FreeSurfer 8.2.0 image, a default command and a spec, and no engine code; it exists because the lab's FreeSurfer plugin, pl-fshack, was a hack by its own name, and because a plugin that wraps a large program is the case the rebuilt pf* stack was made for.
+
+== The problem
+
+FreeSurfer is the reconstruction most of the lab's pipelines end in, and the plugin that ran it, pl-fshack, had been written in 2020 as a quick wrapper: a `--exec` naming the FreeSurfer program, an `--args` string of its options passed through a sentinel, an `--inputFile` found by a leading-period glob, one subject per plugin instance, and a `job_run` of its own with the deadlock and the dropped last line every copy of that function carried. Its FreeSurfer was 7.3.2, downloaded as a tarball at image build, and its image could not be built on GitHub's runners, so releases were built and pushed by hand. It did the job for five years, and a reader who needed to know what it had done to a subject read its stdout file.
+
+== What pl-freesurfer is
+
+pl-freesurfer is pl-shexec's shape with FreeSurfer in the image. The input tree is walked; each directory is a subject; the first file in it, chosen by `--analyzeFileIndex f` and narrowed by `--fileFilter` if the directory is mixed, is the input, which `recon-all` accepts as one file of a DICOM series or as a volume in any format `mri_convert` reads; the template names the subject after its directory and sends the output to the directory's counterpart in the output tree, where `recon-all` creates the subject directory itself. The record is one line of JSON per subject in `jobs.jsonl`, the command as run, both streams complete, the exit status, the host and the timing, which `pflog read` prints as a table; the plugin's own run is one line on standard error. A subject that fails is recorded and the run continues; the exit status says whether any subject completed.
+
+Everything above the image is pl-shexec's. pl-freesurfer's package is a spec, `PluginSpec`, naming the plugin, its version with the FreeSurfer version beside it, its title and resource limits for ChRIS, the default template, and its words for the manual page; `plugin_build` turns the spec into the parser, the manual and the decorated main. The whole of the plugin's Python is under a hundred lines, most of them the manual's text, and a fix to the engine, the records or the exit status reaches it on its next build without a change here.
+
+FreeSurfer's licence is in the image under `FS_LICENSE`, the lab's own key, for research use within the terms FreeSurfer grants. A site running the plugin for another purpose mounts its own licence file over that path. The plugin's version is its own and FreeSurfer's is carried beside it, in the title, in `--version`, in the image's labels and in the history, so that a plugin fix is a new plugin version and a FreeSurfer upgrade is another, and a pipeline that pins a plugin version pins the FreeSurfer it had.
+
+== What pl-freesurfer is not
+
+It is not a FreeSurfer command-line in its own right; it runs the command line FreeSurfer has, through a template, and documents the tags. It is not a per-file tool; the unit is the subject directory, and a tree of loose volumes needs a directory per subject first, which is what the plugin before it in a pipeline provides. It is not a GPU plugin; `recon-all` is CPU work, and `-openmp` through the template is how it uses more than one core.
+
+== Who uses it
+
+A pipeline author who ends a pipeline in a reconstruction, with one directory per subject coming in. A user who wants one FreeSurfer program over every series, through `--exec`. The pf* stack, for which it is the plugin the revitalization of 2026 was walked toward, and the first plugin cut from pfstack's `plugin-on-shexec` template.
