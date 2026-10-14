@@ -109,7 +109,10 @@ jobs:
         run: |
           dock_image=${{ steps.info.outputs.local_tag }}
           docker run --rm $dock_image freesurfer --version
-          docker run --rm $dock_image chris_plugin_info --dock-image $dock_image freesurfer > /dev/null
+          # The image holds two ChRIS plugin distributions, freesurfer and the shexec it is
+          # built on, so chris_plugin_info must be told which; upload-chris-plugin cannot
+          # pass that, so the description is made here and handed to it as a file.
+          docker run --rm $dock_image chris_plugin_info --dock-image $dock_image freesurfer > plugin-description.json
 
       - name: Login to DockerHub
         if: contains(steps.info.outputs.tags_csv, 'docker.io')
@@ -139,7 +142,7 @@ jobs:
         if: github.ref_type == 'tag'
         uses: FNNDSC/upload-chris-plugin@v1
         with:
-          dock_image: ${{ steps.info.outputs.local_tag }}
+          description_file: plugin-description.json
           username: ${{ secrets.CHRISPROJECT_USERNAME }}
           password: ${{ secrets.CHRISPROJECT_PASSWORD }}
           chris_url: https://cube.chrisproject.org/api/v1/
