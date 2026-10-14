@@ -107,4 +107,4 @@ def test_chris_plugin_info_describesThePlugin() -> None:
     assert description["type"] == "ds" and description["selfexec"] == "freesurfer"
     assert description["version"] == __version__ and FREESURFER_VERSION in description["title"]
     assert description["documentation"] == "https://github.com/FNNDSC/pl-freesurfer"
-    assert description["min_memory_limit"] == "8Gi"
+    assert description["min_memory_limit"] == "32Gi"

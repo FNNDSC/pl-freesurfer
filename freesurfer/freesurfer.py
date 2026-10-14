@@ -1,13 +1,20 @@
-"""What pl-freesurfer says about itself: the spec shexec's factory builds the plugin from.
+"""The pl-freesurfer plugin: one FreeSurfer ``recon-all`` per subject directory of an input tree.
 
-Everything this plugin changes from pl-shexec is here: its name and version, its
-description for ChRIS, the defaults of its flags, and its words on the manual page.
-FreeSurfer is in the image; the engine, the flags, the records and the exit status
-are shexec's.
+Given an input tree in which each directory is a subject holding a DICOM series or a
+NIfTI volume, the plugin runs ``recon-all -all`` on the first file of each directory,
+names the subject after the directory, and places the subject's FreeSurfer output in
+the matching directory of the output tree. Any other FreeSurfer program runs through
+``--exec``, a template whose tags resolve to the current directory and file.
+
+The engine that walks the tree, runs the command per file, records each job and sets
+the exit status is pl-shexec's. This module holds what pl-freesurfer adds to it: the
+plugin's name, version, title and resource limits for ChRIS, the default template, and
+the text of its manual page, all in one ``PluginSpec`` that shexec's factory builds the
+plugin from. FreeSurfer itself is in the image.
 
 Key components:
-    - FREESURFER_VERSION: the FreeSurfer the image carries
-    - RECON_ALL: the default ``--exec`` template, one ``recon-all`` per subject directory
+    - FREESURFER_VERSION: the FreeSurfer release the image carries
+    - RECON_ALL: the default ``--exec`` template
     - SPEC: the spec
 
 Dependencies:
@@ -29,6 +36,8 @@ RECON_ALL: str = (
 )
 
 COMMAND: str = RECON_ALL
+
+RECON_ALL_ON_PAGE: str = RECON_ALL.replace(" -s ", "\n                      -s ")
 
 BANNER_ART: str = r"""
    __
@@ -55,30 +64,32 @@ BANNER_TEXT: str = f"""
 DESCRIPTION: str = f"""
     DESCRIPTION
 
-        ``freesurfer`` is pl-shexec with FreeSurfer {FREESURFER_VERSION} in the image.
-        The input tree is walked; in each directory the files are selected by
-        the filters and --analyzeFileIndex, and the --exec template is run once
-        per selected file with its tags resolved against that directory and
-        file, without a shell. The defaults make the common case need no
-        flags: --analyzeFileIndex f selects the first file of each directory,
-        and --exec is
+        ``freesurfer`` runs FreeSurfer {FREESURFER_VERSION} once per directory of
+        its input tree. Each directory is a subject; its first file, a DICOM
+        of the series or a NIfTI, MGZ or any volume mri_convert reads, is the
+        input; and the subject's output lands in the matching directory of the
+        output tree. The default command is
 
-            {RECON_ALL}
+            {RECON_ALL_ON_PAGE}
 
-        so each directory is one subject, named after the directory, whose
-        first file is the input volume. recon-all reads a DICOM file as the
-        first file of its series, or a NIfTI, MGZ or any format mri_convert
-        reads. The subject's directory, mri, surf, label, stats and scripts,
-        is created inside the directory's counterpart in the output tree, and
-        beside it jobs.jsonl records the command, its output, its exit status,
-        the host and the timing. At --verbosity 2 recon-all's output streams
-        to the console as it runs.
+        so recon-all names the subject after its directory and creates the
+        subject directory, mri, surf, label, stats and scripts, inside the
+        directory's counterpart in the output tree. Beside it, jobs.jsonl
+        records the command, its output, its exit status, the host and the
+        timing. At --verbosity 2 recon-all's output streams to the console.
+
+        --exec replaces the command with any FreeSurfer program, as a template
+        whose tags name the current directory and file; --fileFilter and
+        --analyzeFileIndex choose which file in each directory the command
+        gets. --threads runs that many subjects at once in the same container,
+        so the memory the container is given must hold that many recon-all
+        runs: FreeSurfer 8's recon-all peaks near 16 GB in its SynthSeg step
+        and FreeSurfer advises 24 to 32 GB per run.
 
         The plugin's own run is timed: one line of JSON on standard error.
-
         FreeSurfer's licence is in the image under FS_LICENSE, for research
-        use. The exit status is 0 when at least one subject completed, 1
-        when every subject failed, 2 on a usage error.
+        use. The exit status is 0 when at least one subject completed, 1 when
+        every subject failed, 2 on a usage error.
 """
 
 BRIEF_EXAMPLE: str = """
@@ -129,7 +140,7 @@ SPEC: PluginSpec = PluginSpec(
     version=f"{__version__} (FreeSurfer {FREESURFER_VERSION})",
     title=f"FreeSurfer {FREESURFER_VERSION} recon-all over every subject",
     category="Neuroimaging",
-    minMemory="8Gi",
+    minMemory="32Gi",
     minCpu="2000m",
     defaults={"exec": RECON_ALL, "analyzeFileIndex": "f", "fileFilter": ""},
     bannerArt=BANNER_ART,
