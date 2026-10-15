@@ -12,7 +12,7 @@ Dependencies:
 
 from __future__ import annotations
 
-__version__: str = "1.0.2"
+__version__: str = "1.0.3"
 
 from freesurfer.freesurfer import COMMAND, FREESURFER_VERSION, RECON_ALL, SPEC
 from freesurfer.models import FileJob, JobResult, Plugin, PluginSpec, RunResult, Span
