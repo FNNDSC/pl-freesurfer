@@ -86,7 +86,9 @@ def test_description_carriesTheDefaults_forChris() -> None:
 
 
 def test_manualAndVersion_areItsOwn(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    assert main(parser.parse_args(["--man"]), tmp_path, tmp_path) == 0
+    with pytest.raises(SystemExit) as exc:
+        parser.parse_args(["--man"])
+    assert exc.value.code == 0
     out: str = capsys.readouterr().out
     assert "recon-all" in out and FREESURFER_VERSION in out and "TAGS" in out
     with pytest.raises(SystemExit):
@@ -118,5 +120,6 @@ def test_threadsNotOffered_singleSubjectPerContainer(capsys: pytest.CaptureFixtu
         parser.parse_args(["--threads", "2"])
     assert raised.value.code == 2
     capsys.readouterr()
-    assert main(parser.parse_args(["--man"]), Path("/tmp"), Path("/tmp")) == 0
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--man"])
     assert "[--threads" not in capsys.readouterr().out
