@@ -6,7 +6,7 @@ Key components:
 
 Typical usage:
     freesurfer /incoming /outgoing
-    freesurfer --man /tmp /tmp
+    freesurfer --man
 
 Dependencies:
     - shexec.plugin, freesurfer.freesurfer

@@ -41,4 +41,4 @@ WORKDIR /usr/local/src/pl-freesurfer
 COPY . .
 RUN python3.12 -m pip install --no-cache-dir .
 
-CMD ["freesurfer", "--man", "/tmp", "/tmp"]
+CMD ["freesurfer", "--man"]

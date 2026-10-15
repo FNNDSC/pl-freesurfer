@@ -70,7 +70,7 @@ From ChRIS, add the plugin to a pipeline after a plugin that leaves one director
     docker run --rm -v $PWD/in:/incoming:ro -v $PWD/out:/outgoing:rw fnndsc/pl-freesurfer \
         freesurfer /incoming /outgoing
 
-    docker run --rm fnndsc/pl-freesurfer freesurfer --man /tmp /tmp
+    docker run --rm fnndsc/pl-freesurfer freesurfer --man
 
 Built on pl-shexec
 ------------------
