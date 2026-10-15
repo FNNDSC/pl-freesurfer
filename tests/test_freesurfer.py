@@ -14,7 +14,7 @@ from chris_plugin.parameters import serialize
 from hostlib import JobSpec, job_run
 
 from freesurfer import FREESURFER_VERSION, RECON_ALL, SPEC, __version__
-from freesurfer.__main__ import main, parser
+from freesurfer.__main__ import PLUGIN, main, parser
 
 
 def tree_make(root: Path) -> tuple[Path, Path]:
@@ -81,7 +81,7 @@ def test_failingSubjects_failTheRun(tmp_path: Path, monkeypatch: pytest.MonkeyPa
 
 
 def test_description_carriesTheDefaults_forChris() -> None:
-    byName = {spec["name"]: spec for spec in serialize(parser)}
+    byName = {spec["name"]: spec for spec in serialize(PLUGIN.chrisParser)}
     assert byName["exec"]["default"] == RECON_ALL and byName["analyzeFileIndex"]["default"] == "f"
 
 
@@ -110,16 +110,16 @@ def test_chris_plugin_info_describesThePlugin() -> None:
     assert description["version"] == __version__ and FREESURFER_VERSION in description["title"]
     assert description["documentation"] == "https://github.com/FNNDSC/pl-freesurfer"
     assert description["min_memory_limit"] == "32Gi"
+    names: set[str] = {parameter["name"] for parameter in description["parameters"]}
+    assert "threads" not in names and "threadsSplit" not in names and "exec" in names
 
 
-def test_threadsNotOffered_singleSubjectPerContainer(capsys: pytest.CaptureFixture[str]) -> None:
-    names: set[str] = {parameter["name"] for parameter in serialize(parser)}
-    assert "threads" not in names and "threadsSplit" not in names
+def test_threads_notInChris_offeredFromAShell(capsys: pytest.CaptureFixture[str]) -> None:
+    described: set[str] = {parameter["name"] for parameter in serialize(PLUGIN.chrisParser)}
+    assert "threads" not in described and "threadsSplit" not in described
     assert parser.parse_args([]).threads == 0
-    with pytest.raises(SystemExit) as raised:
-        parser.parse_args(["--threads", "2"])
-    assert raised.value.code == 2
-    capsys.readouterr()
+    assert parser.parse_args(["--threads", "2"]).threads == 2
+    assert SPEC.jobMemory == "16Gi"
     with pytest.raises(SystemExit):
         parser.parse_args(["--man"])
-    assert "[--threads" not in capsys.readouterr().out
+    assert "[--threads" in capsys.readouterr().out

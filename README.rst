@@ -3,7 +3,7 @@ pl-freesurfer
 
 **FreeSurfer 8.2 over every subject of an input tree, as a ChRIS plugin.**
 
-``pl-freesurfer`` is a `ChRIS <https://chrisproject.org/>`_ DS plugin that runs FreeSurfer's ``recon-all`` once per directory of its input tree. Each directory is a subject; the first file in it, a DICOM of the series or a NIfTI volume, is the input; the subject's reconstruction lands in the matching directory of the output tree, with a record of the run beside it. The common case needs no flags:
+``pl-freesurfer`` is a `ChRIS <https://chrisproject.org/>`_ DS plugin that runs FreeSurfer's ``recon-all`` once for every directory of its input tree that holds a file, one directory after another in one container. Each such directory is a subject, named after the directory; the first file in it, a DICOM of the series or a NIfTI volume, is the input; the subject's reconstruction lands in the matching directory of the output tree, with a record of the run beside it. The common case needs no flags:
 
 .. code-block:: bash
 
@@ -53,7 +53,11 @@ For a subject directory ``sub-01`` in the input tree, the output tree gets:
 
 ``pflog read /outgoing/*/jobs.jsonl`` prints the subjects as a table, ``--failed`` keeps the ones that went wrong, and a log collector indexes the lines. ``--jobFiles`` also writes the command, stdout, stderr and return code as four files beside the subject directory, for reading in an editor; ``--noJobLogging`` keeps no record. The plugin's own run is one line of JSON on standard error, which CUBE keeps with the plugin instance.
 
-Subjects run one after another, never several at once in one container: FreeSurfer 8's ``recon-all`` peaks near 16 GB, so the plugin asks ChRIS for 32Gi and runs one subject at a time within it. Many subjects are processed in parallel by running one plugin instance per subject, each with ``--dirFilter`` naming its subject, which ChRIS schedules as separate containers. ``recon-all`` itself takes ``-openmp`` through the template, to give one subject more cores. A subject whose ``recon-all`` fails is recorded as failed and the run goes on to the next; the plugin exits 0 when at least one subject completed, 1 when every subject failed, 2 on a usage error.
+In ChRIS, subjects run one after another, never several at once in one container: FreeSurfer 8's ``recon-all`` peaks near 16 GB, so the plugin asks ChRIS for 32Gi, runs one subject at a time within it, and does not offer ``--threads`` among its ChRIS parameters. Many subjects are processed in parallel by running one plugin instance per subject, each with ``--dirFilter`` naming its subject, which ChRIS schedules as separate containers; `pl-dymap <https://github.com/FNNDSC/pl-dymap>`_ run with ``--plugin pl-freesurfer`` on the data node creates those instances, one per subject directory.
+
+From a shell, the plugin is a FreeSurfer batch runner, and ``--threads N`` runs up to N subjects at once: from a virtual environment on a machine with FreeSurfer 8.2 and a licence, as a Slurm job, or with ``apptainer exec docker://fnndsc/pl-freesurfer freesurfer --threads 8 in out``, which needs neither. N is capped at the memory the process may use, its container's or Slurm job's limit or else the machine's available memory, divided by 16 GiB, and the plugin says so on standard error when it lowers N; a 40G Slurm job asking for ``--threads 4`` runs two at a time. Each ``recon-all`` also takes as many cores as its ``-openmp`` gives it.
+
+A subject is any directory holding at least one file that passes ``--fileFilter``, at any depth, the input directory itself included, and it is named after its own directory: ``sub-01/MPRAGE/*.dcm`` is a subject called ``MPRAGE``, and a subject with two series directories is run twice. ``--fileFilter 'glob:*.dcm'`` and ``--dirFilter`` narrow the choice. ``recon-all`` itself takes ``-openmp`` through the template, to give one subject more cores. A subject whose ``recon-all`` fails is recorded as failed and the run goes on to the next; the plugin exits 0 when at least one subject completed, 1 when every subject failed, 2 on a usage error.
 
 The image
 ---------

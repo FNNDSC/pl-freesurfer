@@ -54,21 +54,31 @@ BANNER_TEXT: str = f"""
 
                              -- version {{version}} --
 
-        A ChRIS DS plugin that runs FreeSurfer once per directory of its
-        input tree. By default each directory is a subject and the first
-        file in it, a DICOM of the series or a NIfTI volume, is the input to
-        recon-all -all; the subject's output lands in the matching directory
-        of the output tree. Any FreeSurfer program runs through --exec.
+        A ChRIS DS plugin that runs FreeSurfer's recon-all -all on every
+        directory of its input tree that holds a file. Each such directory
+        is a subject, named after the directory; its first file, a DICOM of
+        the series or a NIfTI volume, is the input. In ChRIS an instance
+        runs its subjects one after another in one 32Gi container, and a
+        pl-dymap node starts one instance per subject to run them in
+        parallel. From a shell, --threads N runs N subjects at once, capped
+        to the memory there is at 16 GiB a subject. Any FreeSurfer program
+        runs through --exec.
 """
 
 DESCRIPTION: str = f"""
     DESCRIPTION
 
-        ``freesurfer`` runs FreeSurfer {FREESURFER_VERSION} once per directory of
-        its input tree. Each directory is a subject; its first file, a DICOM
-        of the series or a NIfTI, MGZ or any volume mri_convert reads, is the
-        input; and the subject's output lands in the matching directory of the
-        output tree. The default command is
+        ``freesurfer`` runs FreeSurfer {FREESURFER_VERSION} once for every directory of its input
+        tree that holds at least one file passing --fileFilter, at any depth,
+        the input directory itself included; a directory holding no such file
+        is passed over. Each of those directories is a subject, named after
+        the directory's own name, so that sub-01/MPRAGE/*.dcm is a subject
+        called MPRAGE, and a subject with two series directories is run twice.
+        Its first file, a DICOM of the series or a NIfTI, MGZ or any volume
+        mri_convert reads, is the input, and the subject's output lands in the
+        matching directory of the output tree. --fileFilter, such as
+        'glob:*.dcm', and --dirFilter choose the directories. The default
+        command is
 
             {RECON_ALL_ON_PAGE}
 
@@ -84,11 +94,26 @@ DESCRIPTION: str = f"""
         gets. recon-all's own options, such as -openmp to use more cores for
         one subject, go in the template.
 
-        Subjects run one after another. The plugin does not run subjects in
-        parallel within one container: FreeSurfer 8's recon-all peaks near
-        16 GB in its SynthSeg step, so two at once would exhaust the
-        container's memory. To process subjects in parallel, run one plugin
-        instance per subject, each choosing its subject with --dirFilter.
+        Subjects run in sequence by default, one after another in the order
+        of the walk; a subject that fails is recorded and the next one
+        starts. In ChRIS that is the only way: FreeSurfer 8's recon-all
+        peaks near 16 GB in its SynthSeg step, the plugin's container has
+        32Gi, and --threads is not among the parameters ChRIS is given.
+        Subjects run in parallel in ChRIS only as separate plugin instances,
+        one per subject, each choosing its subject with --dirFilter, which
+        ChRIS schedules as separate containers at the same time. pl-dymap
+        does this: run on the data node with --plugin pl-freesurfer, it
+        creates one pl-freesurfer instance per subject directory under that
+        node.
+
+        Run from a shell instead, from a virtual environment on a machine
+        with FreeSurfer installed, as a Slurm job, or with apptainer exec on
+        the image, --threads N runs up to N subjects at once. The plugin caps
+        N at the memory it may use, the limit of its container or Slurm job
+        or else the machine's available memory, divided by 16 GiB, and says
+        so on standard error when it lowers N. Each recon-all also uses as
+        many cores as its -openmp option gives it, so N subjects need N
+        times that many.
 
         The plugin's own run is timed: one line of JSON on standard error.
         FreeSurfer's licence is in the image under FS_LICENSE, for research
@@ -137,6 +162,12 @@ EXAMPLES: str = """
 
         freesurfer --dirFilter sub-01,sub-02 --verbosity 2 /incoming /outgoing
 
+    Outside ChRIS, up to eight subjects at once on a machine with the memory
+    and cores for them, here through Apptainer:
+
+        apptainer exec docker://fnndsc/pl-freesurfer                            \\
+            freesurfer --threads 8 /incoming /outgoing
+
     From the image, with the directories mounted:
 
         docker run --rm -v $PWD/in:/incoming:ro -v $PWD/out:/outgoing:rw        \\
@@ -151,7 +182,8 @@ SPEC: PluginSpec = PluginSpec(
     minMemory="32Gi",
     minCpu="2000m",
     defaults={"exec": RECON_ALL, "analyzeFileIndex": "f", "fileFilter": ""},
-    omit=("threads", "threadsSplit"),
+    chrisHidden=("threads", "threadsSplit"),
+    jobMemory="16Gi",
     bannerArt=BANNER_ART,
     bannerTitle=BANNER_TITLE,
     bannerText=BANNER_TEXT,
