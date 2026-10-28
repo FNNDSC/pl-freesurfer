@@ -94,6 +94,17 @@ A ``recon-all`` takes hours. How many run at the same time depends on how the pl
 
 ``--threads N`` keeps up to N ``recon-all`` running at once, each its own program, a new one starting as one ends. N is capped at the memory the process may use, the limit of its container or Slurm job or else the machine's available memory, divided by 16 GiB, and the plugin says on standard error when it lowers N: a Slurm job with ``--mem=40G`` asking for ``--threads 4`` runs two at a time. Each ``recon-all`` also uses as many cores as its ``-openmp`` option gives it, so ``--threads 4`` with ``-openmp 2`` wants eight cores.
 
+From the PACS to results, as one script
+---------------------------------------
+
+The ChRIS form above, from a patient on the PACS to one result per series, is five lines in `chell <https://github.com/FNNDSC/mise>`_, the ChRIS shell. ``examples/t1_mgz.mise`` is that script: it queries the patient's MR studies, keeps the T1 series, pulls them into a new feed, runs the per-series pipeline on the feed's root and waits for the feed to finish. Played as
+
+.. code-block:: bash
+
+    play examples/t1_mgz.mise --param MRN=<mrn>
+
+it answers with the feed. The pipeline it names runs ``mri_convert`` rather than ``recon-all``, so the whole play takes about a minute and a half; a ``recon-all`` pipeline is the same script with another ``PIPELINE``.
+
 The image
 ---------
 

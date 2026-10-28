@@ -1,0 +1,30 @@
+# From the PACS to one MGZ per T1 series, in one play.
+#
+# Query a patient's MR studies, keep the series whose description says T1
+# and not Gadavist, pull them into one new feed, and run the per-series
+# pipeline on its root: pl-dymap makes one pl-freesurfer instance per series,
+# each running mri_convert on the series' first DICOM file, so the four
+# conversions run as four containers at once. The play ends when the feed
+# has finished, or refuses after thirty minutes.
+#
+# Played from chell, logged in as a user who can reach the PACS:
+#
+#     play examples/t1_mgz.mise --param MRN=<mrn>
+#
+# PACS, LABEL and PIPELINE take the defaults below unless given with --param.
+# PIPELINE is the pipeline's /bin name on BCH's CUBE; another CUBE names it
+# differently. A pipeline run with no --previous runs at the feed node under
+# the working directory, which is why the play does cd first.
+@name         T1 series to MGZ, one per series
+@description  Query a patient's MR series, keep the T1s, pull them into one new feed, and convert each to MGZ with FreeSurfer mri_convert in parallel.
+@param        MRN
+@param        PACS     = PACSDCM
+@param        LABEL    = t1 cohort
+@param        PIPELINE = FreeSurfer_8_2_0_mri_convert_per_series_DICOM_id291
+@answers      FEED
+
+T1=$(query PatientID:${MRN},Modality:MR --pacsserver ${PACS} | grep -i t1 | grep -vi gadavist)
+FEED=$(pull ${T1} --new-feed "${LABEL}")
+cd ${FEED.path}
+${PIPELINE}
+expect feed ${FEED.feedId} status eq finishedSuccessfully --within 30m
