@@ -3,7 +3,7 @@ pl-freesurfer
 
 **FreeSurfer 8.2 over every scan of an input tree, as a ChRIS plugin.**
 
-``pl-freesurfer`` is a `ChRIS <https://chrisproject.org/>`_ DS plugin that runs FreeSurfer's ``recon-all`` once per scan. The scans are found in its input tree, the first positional argument, ``/incoming`` below: every NIfTI or MGZ file, and every directory of DICOM files as one series. Each scan's reconstruction is saved in the output tree, the second positional argument, ``/outgoing``, in the directory matching the scan's own, as a FreeSurfer subject named after the scan, with a record of the run beside it: ``/incoming/sub-01/t1.nii.gz`` gives ``/outgoing/sub-01/t1``. The common case needs no flags:
+``pl-freesurfer`` is a `ChRIS <https://chrisproject.org/>`_ DS plugin that runs FreeSurfer's ``recon-all`` once per scan. The scans are found in its input tree, the first positional argument, ``/incoming`` below: every NIfTI or MGZ file, and every directory of DICOM files as one series. Each scan's reconstruction is saved in the output tree, the second positional argument, ``/outgoing``, in the directory matching the scan's own, as a FreeSurfer subject named after the directory, or after the scan when the directory holds several, with a record of the run beside it: ``/incoming/sub-01/t1.nii.gz`` gives ``/outgoing/sub-01/sub-01``, and ``scan01.nii.gz`` beside ``scan02.nii.gz`` gives a subject ``scan01``. The common case needs no flags:
 
 .. code-block:: bash
 
@@ -22,7 +22,7 @@ The default command is a template that pl-shexec resolves once per scan:
 
     recon-all -all -i %{inputWorkingDir}/%{inputWorkingFile} -s %{volumeName} -sd %{outputWorkingDir}
 
-``%{inputWorkingDir}`` is the scan's directory in the input tree, ``%{inputWorkingFile}`` the scan's file, ``%{outputWorkingDir}`` the matching directory in the output tree, and ``%{volumeName}`` the scan's name: a file's name less its extension, ``t1.nii.gz`` as ``t1``, and a DICOM series' directory name. ``--analyzeFileIndex v`` runs each scan once: every file passing ``--fileFilter`` on its own, except the ``.dcm`` files of a directory, which are one series, started from the first of them, since ``recon-all`` reads the series from one of its files. ``--fileFilter`` defaults to ``glob:*.nii.gz,glob:*.nii,glob:*.mgz,glob:*.mgh,glob:*.dcm``, so a ``.json`` sidecar or a text file beside the scans is never handed to ``recon-all``; ``--fileFilter 'glob:*.dcm'`` runs only the DICOM series.
+``%{inputWorkingDir}`` is the scan's directory in the input tree, ``%{inputWorkingFile}`` the scan's file, ``%{outputWorkingDir}`` the matching directory in the output tree, and ``%{volumeName}`` the scan's name: the directory's name for a scan alone in it or a DICOM series, as one subject per directory always was, and for a file beside other scans its name less its extension, ``scan01.nii.gz`` as ``scan01``. A name therefore depends on its neighbours: a second scan added beside ``t1.nii.gz`` renames it ``t1`` on the next run. ``--analyzeFileIndex v`` runs each scan once: every file passing ``--fileFilter`` on its own, except the ``.dcm`` files of a directory, which are one series, started from the first of them, since ``recon-all`` reads the series from one of its files. ``--fileFilter`` defaults to ``glob:*.nii.gz,glob:*.nii,glob:*.mgz,glob:*.mgh,glob:*.dcm``, so a ``.json`` sidecar or a text file beside the scans is never handed to ``recon-all``; ``--fileFilter 'glob:*.dcm'`` runs only the DICOM series.
 
 To give ``recon-all`` its own options, pass the template with them in:
 
@@ -65,13 +65,13 @@ A scan is a file passing ``--fileFilter``, at any depth, or the ``.dcm`` files o
 
 .. code-block:: text
 
-    /incoming/sub-01/t1.nii.gz              subject t1      ->  /outgoing/sub-01/t1/
+    /incoming/sub-01/t1.nii.gz              subject sub-01  ->  /outgoing/sub-01/sub-01/
     /incoming/sub-01/t1.json                not a scan: passed over
     /incoming/sub-02/scan01.nii.gz          subject scan01  ->  /outgoing/sub-02/scan01/
     /incoming/sub-02/scan02.nii.gz          subject scan02  ->  /outgoing/sub-02/scan02/
     /incoming/sub-03/MPRAGE/*.dcm           subject MPRAGE  ->  /outgoing/sub-03/MPRAGE/MPRAGE/
 
-A directory holding a series and a NIfTI file is two scans. When the NIfTI file is named after the directory, ``MPRAGE/MPRAGE.nii`` beside ``MPRAGE/*.dcm``, both name the subject ``MPRAGE`` and the second ``recon-all`` stops on finding it: rename one, or run with a ``--fileFilter`` naming one kind. ``--dirFilter`` keeps only directories whose path matches. ``--analyzeFileIndex f`` gives ``recon-all`` only the first file of each directory, as 1.0 did, and a warning names every scan it leaves out.
+A directory holding a series and a NIfTI file is two scans. The series is named after its directory and the NIfTI file after itself, so when the file is named after the directory, ``MPRAGE/MPRAGE.nii`` beside ``MPRAGE/*.dcm``, both name the subject ``MPRAGE`` and the second ``recon-all`` stops on finding it: rename one, or run with a ``--fileFilter`` naming one kind. ``--dirFilter`` keeps only directories whose path matches. ``--analyzeFileIndex f`` gives ``recon-all`` only the first file of each directory, as 1.0 did, and a warning names every scan it leaves out.
 
 One scan at a time, or many at once
 -----------------------------------

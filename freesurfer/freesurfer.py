@@ -2,9 +2,9 @@
 
 Given an input tree holding NIfTI or MGZ files and directories of DICOM files, the
 plugin runs ``recon-all -all`` once per scan: each image file, and each directory's
-``.dcm`` files as one series. It names the subject after the scan, a file after its
-stem and a series after its directory, and places the subject's FreeSurfer output in
-the matching directory of the output tree. Any other FreeSurfer program runs through
+``.dcm`` files as one series. It names the subject after the scan's directory, or
+after the file's stem when the directory holds several scans, and places the subject's
+FreeSurfer output in the matching directory of the output tree. Any other FreeSurfer program runs through
 ``--exec``, a template whose tags resolve to the current directory and file.
 
 The engine that walks the tree, runs the command per file, records each job and sets
@@ -58,8 +58,8 @@ BANNER_TEXT: str = f"""
         A ChRIS DS plugin that runs FreeSurfer's recon-all -all once per
         scan of its input tree: each NIfTI or MGZ file, and each directory
         of DICOM files as one series. Each scan is a subject named after
-        it, t1.nii.gz as t1 and a series after its directory, saved in
-        the matching directory of the output tree. In ChRIS an instance
+        its directory, or after its file when the directory holds several
+        scans, saved in the matching directory of the output tree. In ChRIS an instance
         runs its scans one after another in one 32Gi container, and a
         pl-dymap node starts one instance per directory to run them in
         parallel. From a shell, --threads N runs N directories at once,
@@ -76,9 +76,10 @@ DESCRIPTION: str = f"""
         files, which together are one series. Each scan's results are saved
         in the output tree, the <outputDir> positional argument, /outgoing,
         in the directory matching the scan's own, as a FreeSurfer subject
-        named after the scan:
+        named after the directory, or after the scan when the directory
+        holds several:
 
-            /incoming/sub-01/t1.nii.gz       subject t1      /outgoing/sub-01/t1/
+            /incoming/sub-01/t1.nii.gz       subject sub-01  /outgoing/sub-01/sub-01/
             /incoming/sub-02/scan01.nii.gz   subject scan01  /outgoing/sub-02/scan01/
             /incoming/sub-02/scan02.nii.gz   subject scan02  /outgoing/sub-02/scan02/
             /incoming/sub-03/MPRAGE/*.dcm    subject MPRAGE  /outgoing/sub-03/MPRAGE/MPRAGE/
@@ -88,8 +89,9 @@ DESCRIPTION: str = f"""
         beside the scans is passed over. ``--analyzeFileIndex`` v, the default,
         runs every scan: each file that passes on its own, except the .dcm
         files of a directory, which are one series and run once, from the
-        first of them. The subject is named by %{{volumeName}}: a file after
-        its name less its extension, a series after its directory.
+        first of them. The subject is named by %{{volumeName}}: the
+        directory's name for a scan alone in it or a series, and for a file
+        beside other scans its name less its extension.
         ``--fileFilter`` 'glob:*.dcm' runs only the series, ``--dirFilter`` only the
         directories whose path matches. The default command is
 

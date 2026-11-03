@@ -18,12 +18,13 @@ from freesurfer.__main__ import PLUGIN, main, parser
 
 
 def tree_make(root: Path) -> tuple[Path, Path]:
-    """A DICOM series beside a notes file, and two NIfTI scans beside a sidecar."""
+    """A DICOM series beside a notes file, two NIfTI scans beside a sidecar, one NIfTI scan beside its own."""
     inputDir: Path = root / "incoming"
     outputDir: Path = root / "outgoing"
     for rel, names in {
         "sub-01": ["0001.dcm", "0002.dcm", "notes.txt"],
         "sub-02": ["scan01.nii.gz", "scan02.nii.gz", "scan01.json"],
+        "sub-03": ["t1.nii.gz", "t1.json"],
     }.items():
         (inputDir / rel).mkdir(parents=True)
         for name in names:
@@ -69,6 +70,7 @@ def test_defaults_runOneReconAllPerScan(
     expected: dict[str, dict[str, str]] = {
         "sub-01": {"sub-01": "sub-01/0001.dcm"},
         "sub-02": {"scan01": "sub-02/scan01.nii.gz", "scan02": "sub-02/scan02.nii.gz"},
+        "sub-03": {"sub-03": "sub-03/t1.nii.gz"},
     }
     for directory, subjects in expected.items():
         lines: list[str] = (outputDir / directory / "jobs.jsonl").read_text().splitlines()
