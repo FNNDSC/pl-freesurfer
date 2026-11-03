@@ -13,17 +13,22 @@ import pytest
 from chris_plugin.parameters import serialize
 from hostlib import JobSpec, job_run
 
-from freesurfer import FREESURFER_VERSION, RECON_ALL, SPEC, __version__
+from freesurfer import FREESURFER_VERSION, RECON_ALL, SCAN_FILTER, SPEC, __version__
 from freesurfer.__main__ import PLUGIN, main, parser
 
 
 def tree_make(root: Path) -> tuple[Path, Path]:
+    """A DICOM series beside a notes file, two NIfTI scans beside a sidecar, one NIfTI scan beside its own."""
     inputDir: Path = root / "incoming"
     outputDir: Path = root / "outgoing"
-    for subject in ("sub-01", "sub-02"):
-        (inputDir / subject).mkdir(parents=True)
-        (inputDir / subject / "0001.dcm").write_bytes(b"not really dicom")
-        (inputDir / subject / "notes.txt").write_text("x\n")
+    for rel, names in {
+        "sub-01": ["0001.dcm", "0002.dcm", "notes.txt"],
+        "sub-02": ["scan01.nii.gz", "scan02.nii.gz", "scan01.json"],
+        "sub-03": ["t1.nii.gz", "t1.json"],
+    }.items():
+        (inputDir / rel).mkdir(parents=True)
+        for name in names:
+            (inputDir / rel / name).write_text("not really an image\n")
     outputDir.mkdir()
     return inputDir, outputDir
 
@@ -45,11 +50,13 @@ def test_spec_namesFreeSurfer() -> None:
     assert (
         SPEC.name == "freesurfer" and FREESURFER_VERSION in SPEC.title and FREESURFER_VERSION in SPEC.version
     )
-    assert SPEC.defaults["exec"] == RECON_ALL and SPEC.defaults["analyzeFileIndex"] == "f"
+    assert SPEC.defaults["exec"] == RECON_ALL and SPEC.defaults["analyzeFileIndex"] == "v"
+    assert SPEC.defaults["fileFilter"] == SCAN_FILTER
     assert "-i %{inputWorkingDir}/%{inputWorkingFile}" in RECON_ALL and "-sd %{outputWorkingDir}" in RECON_ALL
+    assert "-s %{volumeName}" in RECON_ALL
 
 
-def test_defaults_runOneReconAllPerSubject(
+def test_defaults_runOneReconAllPerScan(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     inputDir, outputDir = tree_make(tmp_path)
@@ -60,12 +67,20 @@ def test_defaults_runOneReconAllPerSubject(
     options: argparse.Namespace = parser.parse_args(["--verbosity", "0"])
     assert options.exec == RECON_ALL
     assert main(options, inputDir, outputDir) == 0
-    for subject in ("sub-01", "sub-02"):
-        assert (outputDir / subject / subject / "mri").is_dir()
-        record = json.loads((outputDir / subject / "jobs.jsonl").read_text())
-        assert record["returncode"] == 0 and record["argv"][0] == "recon-all"
-        assert record["argv"][record["argv"].index("-i") + 1].endswith(f"{subject}/0001.dcm")
-        assert record["argv"][record["argv"].index("-s") + 1] == subject
+    expected: dict[str, dict[str, str]] = {
+        "sub-01": {"sub-01": "sub-01/0001.dcm"},
+        "sub-02": {"scan01": "sub-02/scan01.nii.gz", "scan02": "sub-02/scan02.nii.gz"},
+        "sub-03": {"sub-03": "sub-03/t1.nii.gz"},
+    }
+    for directory, subjects in expected.items():
+        lines: list[str] = (outputDir / directory / "jobs.jsonl").read_text().splitlines()
+        records = [json.loads(line) for line in lines]
+        assert len(records) == len(subjects)
+        for record in records:
+            assert record["returncode"] == 0 and record["argv"][0] == "recon-all"
+            subject: str = record["argv"][record["argv"].index("-s") + 1]
+            assert record["argv"][record["argv"].index("-i") + 1].endswith(subjects[subject])
+            assert (outputDir / directory / subject / "mri").is_dir()
     span = json.loads(capsys.readouterr().err.strip().splitlines()[-1])
     assert span["name"] == "freesurfer" and span["status"] is True
 
@@ -82,7 +97,8 @@ def test_failingSubjects_failTheRun(tmp_path: Path, monkeypatch: pytest.MonkeyPa
 
 def test_description_carriesTheDefaults_forChris() -> None:
     byName = {spec["name"]: spec for spec in serialize(PLUGIN.chrisParser)}
-    assert byName["exec"]["default"] == RECON_ALL and byName["analyzeFileIndex"]["default"] == "f"
+    assert byName["exec"]["default"] == RECON_ALL and byName["analyzeFileIndex"]["default"] == "v"
+    assert byName["fileFilter"]["default"] == SCAN_FILTER
 
 
 def test_manualAndVersion_areItsOwn(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
